@@ -1,6 +1,11 @@
 import asyncio
-from solana.publickey import PublicKey
-from solana.keypair import Keypair
+
+from dotenv import dotenv_values
+
+from solders import system_program as sp
+from solders.keypair import Keypair
+from solders.message import Message
+from solders.pubkey import Pubkey
 from solana.rpc.async_api import AsyncClient
 from solana.transaction import Transaction
 import requests
@@ -9,7 +14,7 @@ class SniperBot:
     def __init__(self, private_key, public_key, rugcheck_api_key, max_slippage=0.15, max_price_impact=0.10):
         self.client = AsyncClient("https://api.mainnet-beta.solana.com")
         self.private_key = private_key
-        self.public_key = PublicKey(public_key)
+        self.public_key = Pubkey.from_string(public_key)
         self.base_purchase_amount = 0.5  # Fixed purchase amount in SOL
         self.sale_percentage = 0.3  # Sell 30% of tokens on trigger
         self.rugcheck_api_key = rugcheck_api_key
@@ -19,7 +24,9 @@ class SniperBot:
     async def monitor_tokens(self):
         url = "https://api.some-memecoin-launches.com/new-tokens"
 
-        while True:
+        number = 0
+        while number <= retries_number:
+            number = number + 1
             try:
                 response = requests.get(url)
                 new_tokens = response.json()
@@ -31,6 +38,7 @@ class SniperBot:
             except Exception as e:
                 print(f"Error monitoring tokens: {e}")
             await asyncio.sleep(5)
+
 
     async def verify_token(self, token_mint_address):
         rugcheck_url = f"https://api.rugcheck.xyz/v1/check/{token_mint_address}"
@@ -62,11 +70,11 @@ class SniperBot:
                 print(f"Trade aborted: Slippage or price impact too high for token {token_mint_address}")
                 return
             
-            transaction = Transaction()
+            #transaction = Transaction()
             # Add transaction instructions here to buy with self.base_purchase_amount
 
-            signature = await self.client.send_transaction(transaction, self.private_key, opts=TxOpts(skip_confirmation=False))
-            print(f"Purchased token {token_mint_address} for {self.base_purchase_amount} SOL with transaction signature: {signature}")
+            #signature = await self.client.send_transaction(transaction, self.private_key, opts=TxOpts(skip_confirmation=False))
+            #print(f"Purchased token {token_mint_address} for {self.base_purchase_amount} SOL with transaction signature: {signature}")
             
             # Set a sell condition
             await self.monitor_for_sell_condition(token_mint_address)
@@ -98,9 +106,10 @@ class SniperBot:
 
         while True:
             price_data = self.get_price_data(token_mint_address)
-            if price_data["current_price"] >= purchased_price * sell_threshold:
-                await self.sell_token(token_mint_address)
-                break
+            #if price_data["current_price"] >= purchased_price * sell_threshold:
+            #    await self.sell_token(token_mint_address)
+            #    break
+            print(price_data["current_price"])
             await asyncio.sleep(10)
 
     async def sell_token(self, token_mint_address):
@@ -118,9 +127,12 @@ class SniperBot:
         await self.monitor_tokens()
 
 # Bot configuration
-private_key = "YOUR_PRIVATE_KEY"
-public_key = "YOUR_PUBLIC_KEY"
-rugcheck_api_key = "YOUR_RUGCHECK_API_KEY"
+config = dotenv_values(".env")
+
+private_key = config["WALLET_PRIVATE_KEY"]
+public_key = config["WALLET_PUBLIC_KEY"]
+rugcheck_api_key = config["RUGCHECK_API_KEY"]
+retries_number = 10
 
 sniper_bot = SniperBot(private_key, public_key, rugcheck_api_key)
 
