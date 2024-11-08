@@ -22,7 +22,7 @@ class SniperBot:
         self.max_price_impact = max_price_impact
 
     async def monitor_tokens(self):
-        url = "https://api.some-memecoin-launches.com/new-tokens"
+        url = "https://api.rugcheck.xyz/v1/stats/new_tokens"
 
         number = 0
         while number <= retries_number:
@@ -32,25 +32,27 @@ class SniperBot:
                 new_tokens = response.json()
 
                 for token in new_tokens:
-                    if (await self.verify_token(token['mint_address'])
+                    if (await self.verify_token(token['mint'])
                             and self.check_token_criteria(token)):
-                        await self.snipe_token(token['mint_address'])
+                        await self.snipe_token(token['mint'])
             except Exception as e:
                 print(f"Error monitoring tokens: {e}")
             await asyncio.sleep(5)
 
 
     async def verify_token(self, token_mint_address):
-        rugcheck_url = f"https://api.rugcheck.xyz/v1/check/{token_mint_address}"
-        headers = {
-            "Authorization": f"Bearer {self.rugcheck_api_key}"
-        }
+        rugcheck_url = f"https://api.rugcheck.xyz/v1/tokens/{token_mint_address}/report"
+       # headers = {
+       #     "Authorization": f"Bearer {self.rugcheck_api_key}"
+       # }
         
         try:
-            response = requests.get(rugcheck_url, headers=headers)
+            #response = requests.get(rugcheck_url, headers=headers)
+            response = requests.get(rugcheck_url)
             response_data = response.json()
             
-            if response_data.get('is_rug') is False and response_data.get('score') > 80:
+            #if response_data.get('is_rug') is False and response_data.get('score') < 80:
+            if response_data.get('rugged') is False and response_data.get('score') < 80:
                 print(f"Token {token_mint_address} passed rugcheck with score: {response_data['score']}")
                 return True
             else:
