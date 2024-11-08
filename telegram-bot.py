@@ -7,7 +7,7 @@ config = dotenv_values(".env")
 
 TOKEN = config["TELEGRAM_BOT_TOKEN"]
 
-CANAL_ID = config["TELEGRAM_BOT_TOKEN"]
+CANAL_ID = config["TELEGRAM_CHANELID"]
 
 #async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 #    await update.message.reply_text("Olá! Esdfdasda asdsa dsad.")
