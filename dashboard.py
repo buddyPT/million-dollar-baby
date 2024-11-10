@@ -3,7 +3,7 @@ from dotenv import dotenv_values
 import requests
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from telethon import TelegramClient, events, sync
 
 config = dotenv_values(".env")
@@ -13,6 +13,7 @@ api_id = config["APP_API_ID"]
 api_hash = config["APP_API_HASH"]
 user_operator_id = int(config["TELEGRAM_OPERATOR"])
 wallet_address = config["TELEGRAM_WALLET"]
+transation_deprecated_limit=40
 
 # Inicialize o cliente
 client = TelegramClient('telegram-reader', api_id, api_hash)
@@ -131,6 +132,13 @@ def check_transaction_type(public_key, signature):
         'is_valid': False
         }
 
+
+    # Verificar se o timestamp está presente
+    block_time = transaction_details.get("blockTime")
+    if block_time:
+        # Converter o timestamp de Unix epoch para datetime
+        timestamp = datetime.fromtimestamp(block_time)
+
     # Verifica se a transação foi bem-sucedida
     is_valid = transaction_details['meta'].get('err') is None
 
@@ -161,7 +169,8 @@ def check_transaction_type(public_key, signature):
     return {
         'transaction_type': transaction_type,
         'is_valid': is_valid,
-        'token_address': token_address
+        'token_address': token_address,
+        "timestamp": timestamp
     }
 
 
@@ -185,12 +194,15 @@ def monitor_wallet_in_real_time(public_key, limit=10, interval=3):
                 seen_signatures.add(signature)
                 result = check_transaction_type(public_key, signature)
                 print(f"Timestamp de detecção: {detection_time}")
+
                 print(result)
                 
-                if result.is_valid:
-                    new_transactions = True
+                if result['is_valid']:
+                    current_time = datetime.now()
+                    if (result['timestamp'] is not None) and (abs(current_time - result['timestamp']) < timedelta(seconds=transation_deprecated_limit)):
+                        new_transactions = True
                     
-                    send_telegram_command(result.transaction_type, wallet_address, result.token_address)
+                        send_telegram_command(result.transaction_type, wallet_address, result.token_address)
 
         if not new_transactions:
             # Se nenhuma nova transação for detectada, imprimir a mensagem de ausência
