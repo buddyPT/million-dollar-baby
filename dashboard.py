@@ -100,7 +100,7 @@ async def send_telegram_command(transaction_type, wallet_address, token_address)
         if transaction_type in ["New holder", "Buy more"]:
             quantidade = calculate_purchase_amount(transaction_type, wallet_address)
             if quantidade > 0:
-                command = f"/buy {token_address} {quantidade:.2f}"
+                command = f"/buy {token_address} {quantidade:.6f}"
         elif transaction_type == "Sell part":
             command = f"/sell {token_address} 50%"
         elif transaction_type == "Sell all":
