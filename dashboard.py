@@ -203,7 +203,8 @@ def monitor_wallet_in_real_time(public_key, limit=10, interval=3):
 if __name__ == "__main__":
     #public_key = "9RE2n7FcNDybFmc29MJ7ND33FqxVzqwcreWpqpDvzG6r"  # Substitua pela sua chave pública Solana
     #public_key = "CXNguFpJ4TUyACqn75vYvqcTGLqDfBxNQ9SpvV9rBhXW"  # Substitua pela sua chave pública Solana
-    public_key = "suqh5sHtr8HyJ7q8scBimULPkPpA557prMG47xCHQfK"  # Substitua pela sua chave pública Solana
+    #public_key = "suqh5sHtr8HyJ7q8scBimULPkPpA557prMG47xCHQfK"  # Substitua pela sua chave pública Solana
+    public_key = "CRBYGyfcRSiwcpUr4qxbVeR7MDNb32mkhxxzFAN7iinS"  # Substitua pela sua chave pública Solana
     
     monitor_wallet_in_real_time(public_key, limit=10, interval=3)
 
