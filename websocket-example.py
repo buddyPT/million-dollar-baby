@@ -3,7 +3,7 @@ import json
 import time
 from datetime import datetime
 
-SOLANA_WS_URL = "wss://api.mainnet-beta.solana.com"
+SOLANA_WS_URL = "wss://alien-maximum-fire.solana-mainnet.quiknode.pro/f2b1cffd0318a74a621edd92e8aeefa3f8b5515e"
 wallet_address = "9RE2n7FcNDybFmc29MJ7ND33FqxVzqwcreWpqpDvzG6r"
 
 def on_message(ws, message):
