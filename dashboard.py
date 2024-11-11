@@ -1,5 +1,6 @@
 from dotenv import dotenv_values
 
+import asyncio
 import requests
 import json
 import time
@@ -13,7 +14,7 @@ api_id = config["APP_API_ID"]
 api_hash = config["APP_API_HASH"]
 user_operator_id = int(config["TELEGRAM_OPERATOR"])
 wallet_address = config["TELEGRAM_WALLET"]
-transation_deprecated_limit=40
+transaction_deprecated_limit=40
 
 # Inicialize o cliente
 client = TelegramClient('telegram-reader', api_id, api_hash)
@@ -94,9 +95,12 @@ def calculate_purchase_amount(transaction_type, wallet_address):
     return 0
 
 
+async def send_message(command):
+    # Envia uma mensagem para o usuário específico
+    await client.send_message(user_operator_id, command)
+
 async def send_telegram_command(transaction_type, wallet_address, token_address):
     command = ""
-    # Envia o comando "/buy" caso seja do tipo "New holder"
     if token_address != 'TOKEN_NOT_FOUND':
         if transaction_type in ["New holder", "Buy more"]:
             quantidade = calculate_purchase_amount(transaction_type, wallet_address)
@@ -106,12 +110,11 @@ async def send_telegram_command(transaction_type, wallet_address, token_address)
             command = f"/sell {token_address} 50%"
         elif transaction_type == "Sell all":
             command = f"/sell {token_address} 100%"
-        else:
-            command = ""
 
-    if command != "":
-        await client.send_message(user_operator_id, command)  # Envia o comando como resposta
+    if command:
+        await send_message(command)
         print(f'Comando enviado: {command}')
+        
 
 # Função para o balance da carteira
 def get_walltet_balance(public_key, balances):
@@ -125,7 +128,12 @@ def get_walltet_balance(public_key, balances):
 
 
 def check_transaction_type(public_key, signature):
-    transaction_details = get_transaction_details(signature)
+    number_of_tries=0
+    transaction_details=None
+
+    while transaction_details is None and number_of_tries < 3:
+        transaction_details = get_transaction_details(signature)
+        number_of_tries+=1
 
     if not transaction_details:
         return {
@@ -176,51 +184,50 @@ def check_transaction_type(public_key, signature):
 
 
 # Função para monitorar a carteira em tempo real e imprimir o timestamp de detecção
-def monitor_wallet_in_real_time(public_key, limit=10, interval=3):
-    seen_signatures = set()  # Conjunto para armazenar assinaturas já vistas
+async def monitor_wallet_in_real_time(public_key, limit=10, interval=3):
+    seen_signatures = set()
     while True:
         signatures = get_transaction_signatures(public_key, limit)
-        new_transactions = False  # Flag para verificar se há novas transações
+        new_transactions = False
 
         for signature_info in signatures:
             signature = signature_info["signature"]
             if signature not in seen_signatures:
-                # Capturar o timestamp do momento em que a transação é detectada
                 detection_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 print(f"\nNova transação detectada: {signature}")
-                
-
-                # Adicionar a assinatura ao conjunto de vistas
                 seen_signatures.add(signature)
+                
                 result = check_transaction_type(public_key, signature)
                 print(f"Timestamp de detecção: {detection_time}")
-
                 print(result)
                 
                 if result['is_valid']:
                     current_time = datetime.now()
-                    if (result['timestamp'] is not None) and (abs(current_time - result['timestamp']) < timedelta(seconds=transation_deprecated_limit)):
+                    if result['timestamp'] and abs(current_time - result['timestamp']) < timedelta(seconds=transaction_deprecated_limit):
                         new_transactions = True
-                    
-                        send_telegram_command(result.transaction_type, wallet_address, result.token_address)
+                        await send_telegram_command(result['transaction_type'], wallet_address, result['token_address'])
 
         if not new_transactions:
-            # Se nenhuma nova transação for detectada, imprimir a mensagem de ausência
             current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             print(f"Não existem transações novas. {current_time}")
+        
+        await asyncio.sleep(interval)
 
-        time.sleep(interval)
-
-# Uso do script
+# Uso do script com inicialização do cliente
 if __name__ == "__main__":
     #public_key = "9RE2n7FcNDybFmc29MJ7ND33FqxVzqwcreWpqpDvzG6r"  # Substitua pela sua chave pública Solana
     #public_key = "CXNguFpJ4TUyACqn75vYvqcTGLqDfBxNQ9SpvV9rBhXW"  # Substitua pela sua chave pública Solana
     #public_key = "suqh5sHtr8HyJ7q8scBimULPkPpA557prMG47xCHQfK"  # Substitua pela sua chave pública Solana
     public_key = "CRBYGyfcRSiwcpUr4qxbVeR7MDNb32mkhxxzFAN7iinS"  # Substitua pela sua chave pública Solana
+
     
-    monitor_wallet_in_real_time(public_key, limit=10, interval=3)
+    async def main():
+        await client.start()
+        await monitor_wallet_in_real_time(public_key, limit=10, interval=3)
+    asyncio.run(main())
+    
+    
 
 
     # Execute o cliente e fique sempre à escuta de novas mensagens
-    with client:
-        client.run_until_disconnected()
+    
