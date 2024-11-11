@@ -150,9 +150,19 @@ def check_transaction_type(public_key, signature):
     # Verifica se a transação foi bem-sucedida
     is_valid = transaction_details['meta'].get('err') is None
 
+    if not is_valid:
+        return {
+        'is_valid': False
+        }
+
     # Analisar pré e pós-saldos de tokens para determinar compra/venda e se é total/parcial
     pre_token_balances = transaction_details['meta'].get('preTokenBalances', [])
     post_token_balances = transaction_details['meta'].get('postTokenBalances', [])
+
+    if not pre_token_balances or not post_token_balances:
+        return {
+        'is_valid': False
+        }
 
     transaction_type = 'TOKEN_NOT_FOUND'
     token_address = pre_token_balances[0]['mint']
