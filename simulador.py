@@ -26,7 +26,7 @@ def processar_transacao(data):
     token_amount = data.get('tokenAmount')
     market_cap_sol = data.get('marketCapSol')
 
-    token_amount=(token_amount*0.01)
+    token_amount = (token_amount * 0.01)
     
     if not all([mint, token_amount, market_cap_sol]):
         print("Erro: Dados da transação incompletos.")
@@ -44,18 +44,17 @@ def processar_transacao(data):
             'mint': mint,
             'quantidade': token_amount,
             'preco_token': preco_token_sol,
-            'valor_compra': valor_compra,
+            'valor_transacao': valor_compra,
             'saldo_restante': saldo_atual_sol,
             'timestamp': time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
         })
         
-        # Salva o preço e quantidade da compra no histórico
         if mint in historico_compras:
             historico_compras[mint].append({'preco_compra': preco_token_sol, 'quantidade': token_amount})
         else:
             historico_compras[mint] = [{'preco_compra': preco_token_sol, 'quantidade': token_amount}]
         
-        log_transacao('Compra', token_amount, preco_token_sol, valor_compra, saldo_atual_sol)
+        log_transacao('COMPRA', token_amount, mint, valor_compra, saldo_atual_sol)
         
     elif tx_type == 'sell':
         valor_venda = token_amount * preco_token_sol
@@ -67,43 +66,34 @@ def processar_transacao(data):
         while quantidade_vender > 0 and historico_compras.get(mint):
             compra = historico_compras[mint][0]
             if compra['quantidade'] <= quantidade_vender:
-                # Vende toda essa quantidade e calcula o lucro/perda
                 lucro_perda += (preco_token_sol - compra['preco_compra']) * compra['quantidade']
                 quantidade_vender -= compra['quantidade']
                 historico_compras[mint].pop(0)  # Remove esta entrada do histórico
             else:
-                # Vende uma parte da quantidade
                 lucro_perda += (preco_token_sol - compra['preco_compra']) * quantidade_vender
                 compra['quantidade'] -= quantidade_vender
                 quantidade_vender = 0
 
         percentual_lucro_perda = (lucro_perda / valor_venda) * 100 if valor_venda != 0 else 0
 
-        # Atualiza a transação
         transacoes.append({
             'tipo': 'venda',
             'mint': mint,
             'quantidade': token_amount,
             'preco_token': preco_token_sol,
-            'valor_venda': valor_venda,
-            'lucro_perda': lucro_perda,
-            'percentual_lucro_perda': percentual_lucro_perda,
+            'valor_transacao': valor_venda,
             'saldo_restante': saldo_atual_sol,
             'timestamp': time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
         })
-        log_transacao('Venda', token_amount, preco_token_sol, valor_venda, saldo_atual_sol, lucro_perda, percentual_lucro_perda)
+        log_transacao('VENDA', token_amount, mint, valor_venda, saldo_atual_sol, lucro_perda, percentual_lucro_perda)
 
     # Mostrar evolução geral da conta
     evolucao_geral = calcular_evolucao_geral()
     print(f"Evolução geral da conta: {evolucao_geral:.2f}%")
 
 # Função para logar transações
-def log_transacao(tipo, token_amount, preco_token_sol, valor, saldo_atual, lucro_perda=0, percentual_lucro_perda=0):
-    if tipo == 'Compra':
-        print(f"{tipo} registrada: {token_amount} tokens a {preco_token_sol} SOL cada, saldo restante: {saldo_atual} SOL")
-    elif tipo == 'Venda':
-        print(f"{tipo} registrada: {token_amount} tokens a {preco_token_sol} SOL cada, lucro/perda: {lucro_perda} SOL, saldo restante: {saldo_atual} SOL")
-        print(f"Percentual de lucro/perda: {percentual_lucro_perda:.2f}%")
+def log_transacao(tipo, token_amount, mint, valor, saldo_atual, lucro_perda=0, percentual_lucro_perda=0):
+    print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())} --- {tipo} --- {mint} --- {token_amount:.6f} --- {valor:.6f} SOL --- {saldo_atual:.6f} SOL")
 
 # Função para subscrever ao websocket e monitorar as transações
 async def subscribe():
