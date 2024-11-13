@@ -16,84 +16,58 @@ def calcular_evolucao_geral():
 # Função para processar transações
 def processar_transacao(data):
     global saldo_atual_sol
-    
-    tx_type = data.get('txType')
-    if not tx_type:
-        print("Erro: 'txType' não encontrado na mensagem.")
-        return
 
+    # Obtendo os dados da transação
+    tx_type = data.get('txType')
     mint = data.get('mint')
-    token_amount = data.get('tokenAmount')
+    token_amount = data.get('tokenAmount', 0)  # Define token_amount como 0 se não estiver presente
     market_cap_sol = data.get('marketCapSol')
 
-    token_amount = (token_amount * 0.01)
-    
-    if not all([mint, token_amount, market_cap_sol]):
-        print("Erro: Dados da transação incompletos.")
+    # Validação dos dados da transação (sem verificar token_amount)
+    if not tx_type or not mint or market_cap_sol is None:
+        log_erro(mint)
         return
 
-    # Calculando o preço do token (em SOL)
-    preco_token_sol = market_cap_sol / 1_000_000_000  # Preço do token
+    # Ajuste na quantidade de tokens para o cálculo
+    token_amount = token_amount * 0.01
+    preco_token_sol = market_cap_sol / 1_000_000_000  # Preço do token em SOL
 
-    # Registra a compra ou venda
+    # Processamento de compra
     if tx_type == 'buy':
         valor_compra = token_amount * preco_token_sol
-        saldo_atual_sol -= valor_compra  # Deduz o valor da compra do saldo de SOL
-        transacoes.append({
-            'tipo': 'compra',
-            'mint': mint,
-            'quantidade': token_amount,
-            'preco_token': preco_token_sol,
-            'valor_transacao': valor_compra,
-            'saldo_restante': saldo_atual_sol,
-            'timestamp': time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-        })
-        
+        saldo_atual_sol -= valor_compra
+        log_transacao('COMPRA', mint, token_amount, valor_compra, saldo_atual_sol)
+
+        # Armazenamento no histórico de compras
         if mint in historico_compras:
             historico_compras[mint].append({'preco_compra': preco_token_sol, 'quantidade': token_amount})
         else:
             historico_compras[mint] = [{'preco_compra': preco_token_sol, 'quantidade': token_amount}]
-        
-        log_transacao('COMPRA', token_amount, mint, valor_compra, saldo_atual_sol)
-        
+
+    # Processamento de venda
     elif tx_type == 'sell':
         valor_venda = token_amount * preco_token_sol
-        saldo_atual_sol += valor_venda  # Acrescenta o valor da venda ao saldo de SOL
-        
-        # Calcula o lucro/perda com base na quantidade proporcional vendida
-        lucro_perda = 0
+        saldo_atual_sol += valor_venda
+        log_transacao('VENDA', mint, token_amount, valor_venda, saldo_atual_sol)
+
+        # Atualizando o histórico de compras para cálculo de lucro/perda
         quantidade_vender = token_amount
         while quantidade_vender > 0 and historico_compras.get(mint):
             compra = historico_compras[mint][0]
             if compra['quantidade'] <= quantidade_vender:
-                lucro_perda += (preco_token_sol - compra['preco_compra']) * compra['quantidade']
                 quantidade_vender -= compra['quantidade']
-                historico_compras[mint].pop(0)  # Remove esta entrada do histórico
+                historico_compras[mint].pop(0)
             else:
-                lucro_perda += (preco_token_sol - compra['preco_compra']) * quantidade_vender
                 compra['quantidade'] -= quantidade_vender
                 quantidade_vender = 0
 
-        percentual_lucro_perda = (lucro_perda / valor_venda) * 100 if valor_venda != 0 else 0
-
-        transacoes.append({
-            'tipo': 'venda',
-            'mint': mint,
-            'quantidade': token_amount,
-            'preco_token': preco_token_sol,
-            'valor_transacao': valor_venda,
-            'saldo_restante': saldo_atual_sol,
-            'timestamp': time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-        })
-        log_transacao('VENDA', token_amount, mint, valor_venda, saldo_atual_sol, lucro_perda, percentual_lucro_perda)
-
-    # Mostrar evolução geral da conta
-    evolucao_geral = calcular_evolucao_geral()
-    print(f"Evolução geral da conta: {evolucao_geral:.2f}%")
-
-# Função para logar transações
-def log_transacao(tipo, token_amount, mint, valor, saldo_atual, lucro_perda=0, percentual_lucro_perda=0):
+# Função para logar transações no formato especificado
+def log_transacao(tipo, mint, token_amount, valor, saldo_atual):
     print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())} --- {tipo} --- {mint} --- {token_amount:.6f} --- {valor:.6f} SOL --- {saldo_atual:.6f} SOL")
+
+# Função para logar falhas de processamento
+def log_erro(mint):
+    print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())} --- FAILURE TO PROCESS THE MESSAGE --- {mint if mint else 'UNKNOWN TOKEN'}")
 
 # Função para subscrever ao websocket e monitorar as transações
 async def subscribe():
