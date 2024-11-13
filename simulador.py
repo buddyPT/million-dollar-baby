@@ -25,6 +25,8 @@ def processar_transacao(data):
     mint = data.get('mint')
     token_amount = data.get('tokenAmount')
     market_cap_sol = data.get('marketCapSol')
+
+    token_amount=(token_amount*0.01)
     
     if not all([mint, token_amount, market_cap_sol]):
         print("Erro: Dados da transação incompletos.")
